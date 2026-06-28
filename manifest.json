@@ -1,14 +1,27 @@
 {
-  "background_color": "#f5f5f5",
-  "dir": "ltr",
-  "display": "standalone",
-  "name": "attendance-pro1",
-  "orientation": "any",
+  "name": "Attendance Pro",
+  "short_name": "Attendance",
+  "description": "Aplikasi absensi karyawan online",
+  "start_url": "/",
   "scope": "/",
-  "short_name": "attendance",
-  "start_url": "/https://attendance-pro1-xkyo.vercel.app/",
-  "theme_color": "#162bc7",
-  "id": "admin456231",
-  "description": "https://attendance-pro1-xkyo.vercel.app/",
-  "lang": "id"
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#4F46E5",
+  "theme_color": "#4F46E5",
+  "lang": "id",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
