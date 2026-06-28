@@ -50,6 +50,7 @@ const MapPinIcon   = p => <Icon {...p} d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0
 const ArrowLeft    = p => <Icon {...p} d="M19 12H5M12 19l-7-7 7-7"/>;
 const CameraIcon   = p => <Icon {...p} d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>;
 const CopyIcon     = p => <Icon {...p} d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M8 4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z"/>;
+const LinkIcon     = p => <Icon {...p} d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>;
 
 // ===================== DATA =====================
 const ADMIN_ID = 'admin456231';
@@ -500,6 +501,7 @@ function AdminLaporan({ records }) {
                 <th className="p-4 font-semibold text-slate-600 text-sm">Lokasi</th>
                 <th className="p-4 font-semibold text-slate-600 text-sm">Status</th>
                 <th className="p-4 font-semibold text-slate-600 text-sm text-center">Foto</th>
+                <th className="p-4 font-semibold text-slate-600 text-sm text-center">Lokasi GPS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -521,6 +523,16 @@ function AdminLaporan({ records }) {
                   </td>
                   <td className="p-4 text-center">
                     <img src={r.photo} alt="foto" className="w-10 h-10 rounded-lg object-cover mx-auto border border-slate-200"/>
+                  </td>
+                  <td className="p-4 text-center">
+                    {r.maps_url ? (
+                      <a href={r.maps_url} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 border border-blue-200">
+                        <MapPinIcon size={12}/> Lihat
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
                   </td>
                 </tr>
               )) : (
@@ -572,6 +584,22 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
   };
   const confirmSubmit = async () => {
     if(!photoData||!absenType) return;
+    
+    // Ambil GPS koordinat
+    let latitude = null, longitude = null, maps_url = null;
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true, timeout: 8000
+        });
+      });
+      latitude = pos.coords.latitude;
+      longitude = pos.coords.longitude;
+      maps_url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    } catch(gpsErr) {
+      console.warn('GPS tidak tersedia:', gpsErr.message);
+    }
+
     const newRec = {
       id: Date.now(),
       employeeId: currentUser.id,
@@ -579,9 +607,10 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
       location: currentUser.location,
       type: absenType,
       time: new Date().toISOString(),
-      photo: photoData
+      photo: photoData,
+      latitude, longitude, maps_url
     };
-    // Simpan ke Supabase
+
     const { error } = await supabase.from('records').insert([{
       id: newRec.id,
       employee_id: newRec.employeeId,
@@ -589,14 +618,15 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
       location: newRec.location,
       type: newRec.type,
       time: newRec.time,
-      photo: newRec.photo
+      photo: newRec.photo,
+      latitude: newRec.latitude,
+      longitude: newRec.longitude,
+      maps_url: newRec.maps_url
     }]);
-    if (error) {
-      alert('Gagal simpan absen: ' + error.message);
-      return;
-    }
+    if (error) { alert('Gagal simpan absen: ' + error.message); return; }
     setRecords(prev => [newRec, ...prev]);
-    alert(`✅ Berhasil!\nAbsen ${absenType==='Check In'?'Masuk':'Pulang'} pukul ${new Date().toLocaleTimeString('id-ID')}`);
+    const gpsInfo = maps_url ? `\n📍 Lokasi GPS berhasil direkam` : `\n⚠️ GPS tidak aktif`;
+    alert(`✅ Berhasil!\nAbsen ${absenType==='Check In'?'Masuk':'Pulang'} pukul ${new Date().toLocaleTimeString('id-ID')}${gpsInfo}`);
     cancelFlow();
   };
 
@@ -683,6 +713,11 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
                   <div>
                     <p className="font-bold text-slate-800 text-sm">{r.type==='Check In'?'Absen Masuk':'Absen Pulang'}</p>
                     <p className="text-xs text-slate-500">{new Date(r.time).toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'})}</p>
+                    {r.maps_url && (
+                      <a href={r.maps_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 mt-0.5">
+                        <MapPinIcon size={10}/> Lihat lokasi
+                      </a>
+                    )}
                   </div>
                 </div>
                 <p className="text-lg font-bold font-mono text-slate-700">{new Date(r.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</p>
