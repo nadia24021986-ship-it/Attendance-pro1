@@ -1,183 +1,161 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
   <title>Portal Kehadiran</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    .custom-scrollbar::-webkit-scrollbar{width:4px;}
+    .custom-scrollbar::-webkit-scrollbar-track{background:transparent;}
+    .custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:20px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{animation:spin 1s linear infinite;}
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
-// ===================== SUPABASE =====================
-const SUPABASE_URL = 'https://kxklbnwfnhvbxulsoolu.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_DiK2kY485pL1iycM5LAfZQ_QCVwHSQt';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ============ SUPABASE ============
+const SB_URL = 'https://kxklbnwfnhvbxulsoolu.supabase.co';
+const SB_KEY = 'sb_publishable_DiK2kY485pL1iycM5LAfZQ_QCVwHSQt';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-// ===================== ICONS =====================
-const Icon = ({ d, size=20, className="" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d={d}/>
-  </svg>
+// ============ ICONS ============
+const Ic = ({d,size=20,cls=""})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}><path d={d}/></svg>
 );
-const ClockIcon    = p => <Icon {...p} d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 4v6l4 2"/>;
-const LogOutIcon   = p => <Icon {...p} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>;
-const FileTextIcon = p => <Icon {...p} d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/>;
-const UsersIcon    = p => <Icon {...p} d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>;
-const PrinterIcon  = p => <Icon {...p} d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/>;
-const CheckIcon    = p => <Icon {...p} d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3"/>;
-const XIcon        = p => <Icon {...p} d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM15 9l-6 6M9 9l6 6"/>;
-const ChevronRight = p => <Icon {...p} d="M9 18l6-6-6-6"/>;
-const UserPlusIcon = p => <Icon {...p} d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6"/>;
-const SearchIcon   = p => <Icon {...p} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>;
-const BriefIcon    = p => <Icon {...p} d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>;
-const MapPinIcon   = p => <Icon {...p} d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>;
-const ArrowLeft    = p => <Icon {...p} d="M19 12H5M12 19l-7-7 7-7"/>;
-const CameraIcon   = p => <Icon {...p} d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>;
-const CopyIcon     = p => <Icon {...p} d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M8 4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z"/>;
-const LinkIcon     = p => <Icon {...p} d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>;
+const IcClock    = p=><Ic {...p} d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 4v6l4 2"/>;
+const IcLogout   = p=><Ic {...p} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>;
+const IcFile     = p=><Ic {...p} d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/>;
+const IcUsers    = p=><Ic {...p} d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>;
+const IcPrint    = p=><Ic {...p} d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z"/>;
+const IcCheck    = p=><Ic {...p} d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3"/>;
+const IcX        = p=><Ic {...p} d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM15 9l-6 6M9 9l6 6"/>;
+const IcChevron  = p=><Ic {...p} d="M9 18l6-6-6-6"/>;
+const IcUserPlus = p=><Ic {...p} d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6"/>;
+const IcSearch   = p=><Ic {...p} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>;
+const IcBrief    = p=><Ic {...p} d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>;
+const IcPin      = p=><Ic {...p} d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>;
+const IcBack     = p=><Ic {...p} d="M19 12H5M12 19l-7-7 7-7"/>;
+const IcCamera   = p=><Ic {...p} d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>;
+const IcCopy     = p=><Ic {...p} d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M8 4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2z"/>;
+const IcTrash    = p=><Ic {...p} d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>;
+const IcMap      = p=><Ic {...p} d="M1 6l7-4 8 4 7-4v16l-7 4-8-4-7 4V6zM8 2v18M16 6v18"/>;
 
-// ===================== DATA =====================
+// ============ DATA AWAL ============
 const ADMIN_ID = 'admin456231';
+const initEmployees = [
+  {id:'KRY-001',name:'Budi Santoso',position:'Staff IT',location:'Kantor Pusat'},
+  {id:'KRY-002',name:'Siti Aminah',position:'Admin Gudang',location:'Gudang Sektor 4'},
+  {id:'KRY-003',name:'Rudi Hartono',position:'Security',location:'Kantor Pusat'},
+];
 
-// Generate ID unik berbasis timestamp agar tidak bentrok
-const generateId = (existingEmployees) => {
-  let num = existingEmployees.length + 1;
-  let newId = `KRY-${String(num).padStart(3,'0')}`;
-  // Pastikan ID tidak duplikat
-  while (existingEmployees.some(e => e.id === newId)) {
-    num++;
-    newId = `KRY-${String(num).padStart(3,'0')}`;
-  }
-  return newId;
+const genId = (list) => {
+  let n = list.length + 1;
+  let id = `KRY-${String(n).padStart(3,'0')}`;
+  while(list.some(e=>e.id===id)){n++;id=`KRY-${String(n).padStart(3,'0')}`;}
+  return id;
 };
 
-const initialEmployees = [
-  { id: 'KRY-001', name: 'Budi Santoso',  position: 'Staff IT',     location: 'Kantor Pusat'   },
-  { id: 'KRY-002', name: 'Siti Aminah',   position: 'Admin Gudang', location: 'Gudang Sektor 4'},
-  { id: 'KRY-003', name: 'Rudi Hartono',  position: 'Security',     location: 'Kantor Pusat'   },
-];
-
-const initialRecords = [
-  { id:1, employeeId:'KRY-001', name:'Budi Santoso', location:'Kantor Pusat',    type:'Check In',  time: new Date().toISOString(),                photo:'https://placehold.co/100x100/e0e7ff/4f46e5?text=BS' },
-  { id:2, employeeId:'KRY-002', name:'Siti Aminah',  location:'Gudang Sektor 4', type:'Check In',  time: new Date(Date.now()-3600000).toISOString(), photo:'https://placehold.co/100x100/fce7f3/be185d?text=SA' },
-];
-
-// ===================== APP =====================
+// ============ APP ============
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [employees, setEmployees]     = useState([]);
-  const [records, setRecords]         = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [user, setUser]         = useState(null);
+  const [employees, setEmp]     = useState([]);
+  const [records, setRec]       = useState([]);
+  const [loading, setLoading]   = useState(true);
 
-  // Load data dari Supabase saat pertama kali
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(()=>{ loadAll(); },[]);
 
-  const loadData = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const [empRes, recRes] = await Promise.all([
-        supabase.from('employees').select('*').order('id'),
-        supabase.from('records').select('*').order('time', { ascending: false })
+      const [eR, rR] = await Promise.all([
+        sb.from('employees').select('*').order('id'),
+        sb.from('records').select('*').order('time',{ascending:false})
       ]);
-      if (empRes.data && empRes.data.length > 0) {
-        setEmployees(empRes.data.map(e => ({
-          id: e.id, name: e.name, position: e.position, location: e.location
-        })));
+      if(eR.data && eR.data.length>0){
+        setEmp(eR.data.map(e=>({id:e.id,name:e.name,position:e.position,location:e.location})));
       } else {
-        // Isi data awal ke Supabase kalau kosong
-        await supabase.from('employees').insert(initialEmployees);
-        setEmployees(initialEmployees);
+        await sb.from('employees').insert(initEmployees);
+        setEmp(initEmployees);
       }
-      if (recRes.data) {
-        setRecords(recRes.data.map(r => ({
-          id: r.id, employeeId: r.employee_id, name: r.name,
-          location: r.location, type: r.type, time: r.time, photo: r.photo
-        })));
-      }
-    } catch(err) {
-      console.error('Load error:', err);
-      setEmployees(initialEmployees);
-      setRecords(initialRecords);
+      setRec((rR.data||[]).map(r=>({
+        id:r.id, employeeId:r.employee_id, name:r.name,
+        location:r.location, type:r.type, time:r.time,
+        photo:r.photo, latitude:r.latitude, longitude:r.longitude, maps_url:r.maps_url
+      })));
+    } catch(e){
+      console.error(e);
+      setEmp(initEmployees);
     }
     setLoading(false);
   };
 
-  if (loading) return (
+  if(loading) return (
     <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center gap-4">
-      <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"/>
-      <p className="text-white font-semibold text-lg">Memuat data...</p>
+      <div className="w-14 h-14 border-4 border-white border-t-transparent rounded-full spin"/>
+      <p className="text-white font-semibold">Memuat data...</p>
     </div>
   );
 
-  if (!currentUser)
-    return <LoginScreen onLogin={setCurrentUser} employees={employees}/>;
-  if (currentUser === 'admin')
-    return <AdminDashboard onLogout={()=>setCurrentUser(null)} employees={employees} setEmployees={setEmployees} records={records} reloadData={loadData}/>;
-  return <EmployeeDashboard currentUser={currentUser} onLogout={()=>setCurrentUser(null)} records={records} setRecords={setRecords}/>;
+  if(!user) return <Login onLogin={setUser} employees={employees}/>;
+  if(user==='admin') return <AdminDash onLogout={()=>setUser(null)} employees={employees} setEmp={setEmp} records={records} setRec={setRec} reload={loadAll}/>;
+  return <EmpDash user={user} onLogout={()=>setUser(null)} records={records} setRec={setRec}/>;
 }
 
-// ===================== LOGIN =====================
-function LoginScreen({ onLogin, employees }) {
-  const [inputId,  setInputId]  = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
+// ============ LOGIN ============
+function Login({onLogin, employees}) {
+  const [id,setId]     = useState('');
+  const [err,setErr]   = useState('');
+  const [busy,setBusy] = useState(false);
 
-  const handleSubmit = e => {
-    e.preventDefault(); setLoading(true); setError('');
-    setTimeout(() => {
-      const trimmed = inputId.trim();
-      if (trimmed === ADMIN_ID) {
-        // Admin: exact match (case sensitive)
-        onLogin('admin');
-      } else {
-        // Karyawan: tidak case sensitive (KRY-001 = kry-001)
-        const emp = employees.find(e => e.id.toUpperCase() === trimmed.toUpperCase());
-        emp ? onLogin(emp) : setError('ID tidak valid. Periksa kembali ID Anda.');
+  const submit = e => {
+    e.preventDefault(); setBusy(true); setErr('');
+    setTimeout(()=>{
+      const t = id.trim();
+      if(t===ADMIN_ID){ onLogin('admin'); }
+      else {
+        const emp = employees.find(e=>e.id.toUpperCase()===t.toUpperCase());
+        emp ? onLogin(emp) : setErr('ID tidak valid. Periksa kembali.');
       }
-      setLoading(false);
-    }, 600);
+      setBusy(false);
+    },500);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1/3 bg-indigo-600 rounded-b-3xl"/>
-      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-100">
+      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-100">
         <div className="text-center mb-8">
           <div className="bg-indigo-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ClockIcon size={40} className="text-indigo-600"/>
+            <IcClock size={40} cls="text-indigo-600"/>
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-800">Portal Kehadiran</h1>
+          <h1 className="text-2xl font-extrabold text-slate-800">Portal Kehadiran</h1>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">ID Pengguna</label>
-            <input type="text" placeholder="Masukkan ID Karyawan" required autoComplete="off"
-              className="w-full px-5 py-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-slate-700 font-mono text-center text-lg tracking-wider focus:ring-2 focus:ring-indigo-500"
-              value={inputId} onChange={e=>setInputId(e.target.value)}/>
+            <input type="text" placeholder="Masukkan ID" required autoComplete="off" autoCorrect="off" autoCapitalize="none"
+              className="w-full px-4 py-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-slate-800 font-mono text-center text-lg tracking-widest focus:ring-2 focus:ring-indigo-500"
+              value={id} onChange={e=>setId(e.target.value)}/>
           </div>
-          {error && <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded">{error}</div>}
-          <button type="submit" disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 disabled:opacity-70">
-            {loading ? 'Memverifikasi...' : 'MASUK'}
-            {!loading && <ChevronRight size={20}/>}
+          {err && <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded">{err}</div>}
+          <button type="submit" disabled={busy}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 disabled:opacity-60">
+            {busy?'Memverifikasi...':'MASUK'} {!busy&&<IcChevron size={18}/>}
           </button>
         </form>
       </div>
@@ -185,105 +163,110 @@ function LoginScreen({ onLogin, employees }) {
   );
 }
 
-// ===================== ADMIN DASHBOARD =====================
-function AdminDashboard({ onLogout, employees, setEmployees, records }) {
-  const [tab, setTab] = useState('laporan');
+// ============ ADMIN DASHBOARD ============
+function AdminDash({onLogout,employees,setEmp,records,setRec,reload}) {
+  const [tab,setTab] = useState('laporan');
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col">
         <div className="p-6 flex items-center gap-3 border-b border-slate-800">
-          <div className="bg-indigo-500 p-2 rounded-lg"><UsersIcon size={22} className="text-white"/></div>
-          <div><h2 className="font-bold text-white">Admin Portal</h2><p className="text-xs text-slate-400">HR Management System</p></div>
+          <div className="bg-indigo-500 p-2 rounded-lg"><IcUsers size={22} cls="text-white"/></div>
+          <div><h2 className="font-bold text-white">Admin Portal</h2><p className="text-xs text-slate-400">HR Management</p></div>
         </div>
         <nav className="p-4 flex-1 flex flex-col gap-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-3 mb-1">Menu</p>
-          {[['laporan','Laporan Absensi',<FileTextIcon size={18}/>],['karyawan','Data Karyawan',<UsersIcon size={18}/>]].map(([key,label,icon])=>(
-            <button key={key} onClick={()=>setTab(key)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${tab===key?'bg-indigo-600 text-white':'hover:bg-slate-800 hover:text-white'}`}>
-              {icon}<span className="font-medium">{label}</span>
+          {[['laporan','Laporan',<IcFile size={18}/>],['karyawan','Karyawan',<IcUsers size={18}/>]].map(([k,l,ic])=>(
+            <button key={k} onClick={()=>setTab(k)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${tab===k?'bg-indigo-600 text-white':'hover:bg-slate-800 hover:text-white'}`}>
+              {ic}<span className="font-medium">{l}</span>
             </button>
           ))}
           <div className="mt-auto pt-6">
             <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 border border-slate-800">
-              <LogOutIcon size={18}/><span>Keluar</span>
+              <IcLogout size={18}/> Keluar
             </button>
           </div>
         </nav>
       </aside>
-      <main className="flex-1 p-6 md:p-8 overflow-auto min-h-screen">
+      <main className="flex-1 p-5 md:p-8 overflow-auto min-h-screen">
         <div className="max-w-5xl mx-auto">
           {tab==='karyawan'
-            ? <AdminKaryawan employees={employees} setEmployees={setEmployees}/>
-            : <AdminLaporan records={records}/>}
+            ?<AdminKaryawan employees={employees} setEmp={setEmp}/>
+            :<AdminLaporan records={records} setRec={setRec}/>}
         </div>
       </main>
     </div>
   );
 }
 
-// ===================== ADMIN KARYAWAN =====================
-function AdminKaryawan({ employees, setEmployees }) {
-  const [form, setForm]       = useState({ name:'', position:'', location:'' });
-  const [showForm, setShowForm] = useState(false);
-  const [lastAdded, setLastAdded] = useState(null); // simpan ID terakhir di state
+// ============ ADMIN KARYAWAN ============
+function AdminKaryawan({employees,setEmp}) {
+  const [form,setForm]       = useState({name:'',position:'',location:''});
+  const [showForm,setShow]   = useState(false);
+  const [lastAdded,setLast]  = useState(null);
+  const [deleting,setDel]    = useState(false);
 
   const handleAdd = async e => {
     e.preventDefault();
-    const newId = generateId(employees);
-    const newEmp = { id: newId, ...form };
-    // Simpan ke Supabase
-    const { error } = await supabase.from('employees').insert([{
-      id: newId, name: form.name, position: form.position, location: form.location
-    }]);
-    if (error) { alert('Gagal simpan: ' + error.message); return; }
-    setEmployees(prev => [...prev, newEmp]);
-    setLastAdded(newEmp);
-    setForm({ name:'', position:'', location:'' });
-    setShowForm(false);
+    const newId = genId(employees);
+    const {error} = await sb.from('employees').insert([{id:newId,name:form.name,position:form.position,location:form.location}]);
+    if(error){alert('Gagal: '+error.message);return;}
+    const emp = {id:newId,...form};
+    setEmp(prev=>[...prev,emp]);
+    setLast(emp);
+    setForm({name:'',position:'',location:''});
+    setShow(false);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(()=>alert(`ID "${text}" sudah disalin!`));
+  const handleDelete = async (emp) => {
+    if(!window.confirm(`Hapus karyawan ${emp.name} (${emp.id})?\nData absensinya juga akan terhapus.`)) return;
+    setDel(true);
+    await sb.from('records').delete().eq('employee_id',emp.id);
+    await sb.from('employees').delete().eq('id',emp.id);
+    setEmp(prev=>prev.filter(e=>e.id!==emp.id));
+    setDel(false);
+    alert(`Karyawan ${emp.name} berhasil dihapus.`);
+  };
+
+  const copy = t => {
+    if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>alert('ID disalin: '+t));
+    else { const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('ID disalin: '+t); }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <div><h1 className="text-2xl font-bold text-slate-800">Data Karyawan</h1><p className="text-slate-500 text-sm mt-1">Kelola karyawan & akses login</p></div>
-        <button onClick={()=>setShowForm(!showForm)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2">
-          {showForm ? <XIcon size={16}/> : <UserPlusIcon size={16}/>} {showForm?'Batal':'Tambah'}
+        <div><h1 className="text-2xl font-bold text-slate-800">Data Karyawan</h1><p className="text-slate-500 text-sm mt-1">{employees.length} karyawan terdaftar</p></div>
+        <button onClick={()=>setShow(!showForm)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2">
+          {showForm?<IcX size={16}/>:<IcUserPlus size={16}/>} {showForm?'Batal':'Tambah'}
         </button>
       </div>
 
-      {/* NOTIFIKASI ID BARU — tampil di UI agar mudah disalin */}
       {lastAdded && (
         <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-5">
           <p className="text-emerald-800 font-bold text-sm mb-3">✅ Karyawan berhasil ditambahkan!</p>
           <div className="bg-white rounded-xl p-4 border border-emerald-200">
             <p className="text-xs text-slate-500 mb-1">Nama</p>
             <p className="font-bold text-slate-800 mb-3">{lastAdded.name}</p>
-            <p className="text-xs text-slate-500 mb-1">ID Login Karyawan</p>
+            <p className="text-xs text-slate-500 mb-1">ID Login</p>
             <div className="flex items-center gap-3">
-              <span className="text-3xl font-mono font-extrabold text-indigo-700 tracking-widest bg-indigo-50 px-4 py-2 rounded-xl border-2 border-indigo-200">
-                {lastAdded.id}
-              </span>
-              <button onClick={()=>copyToClipboard(lastAdded.id)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
-                <CopyIcon size={14}/> Salin
+              <span className="text-2xl font-mono font-extrabold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-xl border-2 border-indigo-200">{lastAdded.id}</span>
+              <button onClick={()=>copy(lastAdded.id)} className="flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg">
+                <IcCopy size={14}/> Salin
               </button>
             </div>
-            <p className="text-xs text-amber-600 mt-3 font-medium">⚠️ Berikan ID ini kepada karyawan untuk login. Karyawan memasukkan ID persis seperti di atas (contoh: KRY-004)</p>
+            <p className="text-xs text-amber-600 mt-3">⚠️ Berikan ID ini kepada karyawan untuk login</p>
           </div>
-          <button onClick={()=>setLastAdded(null)} className="text-xs text-slate-400 mt-2 hover:text-slate-600">Tutup notifikasi</button>
+          <button onClick={()=>setLast(null)} className="text-xs text-slate-400 mt-2">Tutup</button>
         </div>
       )}
 
       {showForm && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="font-bold text-slate-800 mb-4 pb-3 border-b">Karyawan Baru</h3>
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold text-slate-800 mb-4 pb-3 border-b">Tambah Karyawan Baru</h3>
           <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="text-sm font-medium text-slate-700 block mb-1">Nama Lengkap</label>
-              <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nama lengkap..." className="w-full border border-slate-200 bg-slate-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"/></div>
+              <input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Nama..." className="w-full border border-slate-200 bg-slate-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"/></div>
             <div><label className="text-sm font-medium text-slate-700 block mb-1">Jabatan</label>
               <input required value={form.position} onChange={e=>setForm({...form,position:e.target.value})} placeholder="Staff IT..." className="w-full border border-slate-200 bg-slate-50 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"/></div>
             <div className="md:col-span-2"><label className="text-sm font-medium text-slate-700 block mb-1">Lokasi</label>
@@ -296,30 +279,30 @@ function AdminKaryawan({ employees, setEmployees }) {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200 text-sm text-slate-600">
-            <tr>
-              <th className="p-4 font-semibold">ID Login</th>
-              <th className="p-4 font-semibold">Profil</th>
-              <th className="p-4 font-semibold">Lokasi</th>
-              <th className="p-4 font-semibold text-right">Status</th>
-            </tr>
+            <tr><th className="p-4 font-semibold">ID Login</th><th className="p-4 font-semibold">Profil</th><th className="p-4 font-semibold">Lokasi</th><th className="p-4 font-semibold text-center">Aksi</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {employees.map(emp=>(
               <tr key={emp.id} className="hover:bg-slate-50">
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-md text-sm font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">{emp.id}</span>
-                    <button onClick={()=>copyToClipboard(emp.id)} className="text-slate-300 hover:text-indigo-500" title="Salin ID"><CopyIcon size={14}/></button>
+                    <span className="px-2 py-1 rounded-md text-sm font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">{emp.id}</span>
+                    <button onClick={()=>copy(emp.id)} className="text-slate-300 hover:text-indigo-500"><IcCopy size={13}/></button>
                   </div>
                 </td>
                 <td className="p-4">
                   <div className="font-semibold text-slate-800">{emp.name}</div>
-                  <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><BriefIcon size={12}/>{emp.position}</div>
+                  <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><IcBrief size={11}/>{emp.position}</div>
                 </td>
                 <td className="p-4 text-slate-600 text-sm">
-                  <div className="flex items-center gap-1.5"><MapPinIcon size={14} className="text-slate-400"/>{emp.location}</div>
+                  <div className="flex items-center gap-1"><IcPin size={13} cls="text-slate-400"/>{emp.location}</div>
                 </td>
-                <td className="p-4 text-right"><span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Aktif</span></td>
+                <td className="p-4 text-center">
+                  <button onClick={()=>handleDelete(emp)} disabled={deleting}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg text-xs font-medium border border-red-200">
+                    <IcTrash size={13}/> Hapus
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -329,171 +312,119 @@ function AdminKaryawan({ employees, setEmployees }) {
   );
 }
 
-// ===================== ADMIN LAPORAN =====================
-function AdminLaporan({ records }) {
-  const [filterLoc,    setFilterLoc]    = useState('');
-  const [filterPeriod, setFilterPeriod] = useState('Semua Waktu');
-  const [exporting,    setExporting]    = useState(false);
+// ============ ADMIN LAPORAN ============
+function AdminLaporan({records,setRec}) {
+  const [filterLoc,setLoc]       = useState('');
+  const [filterPeriod,setPeriod] = useState('Semua Waktu');
+  const [exporting,setExp]       = useState(false);
+  const [deleting,setDel]        = useState(false);
 
-  const filtered = records.filter(r => {
-    const matchLoc = !filterLoc || r.location.toLowerCase().includes(filterLoc.toLowerCase());
-    const now = new Date(), d = new Date(r.time);
-    let matchPeriod = true;
-    if      (filterPeriod==='Hari Ini')   matchPeriod = d.toDateString()===now.toDateString();
-    else if (filterPeriod==='Minggu Ini') matchPeriod = d >= new Date(now-7*86400000);
-    else if (filterPeriod==='Bulan Ini')  matchPeriod = d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
-    return matchLoc && matchPeriod;
+  const filtered = records.filter(r=>{
+    const ml = !filterLoc || r.location.toLowerCase().includes(filterLoc.toLowerCase());
+    const now=new Date(), d=new Date(r.time);
+    let mp = true;
+    if(filterPeriod==='Hari Ini') mp=d.toDateString()===now.toDateString();
+    else if(filterPeriod==='Minggu Ini') mp=d>=new Date(now-7*86400000);
+    else if(filterPeriod==='Bulan Ini') mp=d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    return ml&&mp;
   });
 
+  const deleteAll = async () => {
+    if(!window.confirm(`Hapus SEMUA ${filtered.length} data absensi yang terfilter?\nTindakan ini tidak bisa dibatalkan!`)) return;
+    setDel(true);
+    const ids = filtered.map(r=>r.id);
+    await sb.from('records').delete().in('id',ids);
+    setRec(prev=>prev.filter(r=>!ids.includes(r.id)));
+    setDel(false);
+    alert('Data absensi berhasil dihapus.');
+  };
+
   const exportPDF = () => {
-    setExporting(true);
-    setTimeout(() => {
+    if(filtered.length===0){alert('Tidak ada data untuk diekspor.');return;}
+    setExp(true);
+    setTimeout(()=>{
       try {
-        // Coba ambil jsPDF dari berbagai kemungkinan lokasi
-        let JsPDF = null;
-        if (window.jspdf && window.jspdf.jsPDF) {
-          JsPDF = window.jspdf.jsPDF;
-        } else if (window.jsPDF) {
-          JsPDF = window.jsPDF;
-        } else {
-          throw new Error('Library jsPDF tidak ditemukan');
-        }
+        let JsPDF = (window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+        if(!JsPDF) throw new Error('Library PDF tidak ditemukan');
+        const doc = new JsPDF({orientation:'landscape',unit:'mm',format:'a4'});
 
-        const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-        // Header biru
-        doc.setFillColor(79, 70, 229);
-        doc.rect(0, 0, 297, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('LAPORAN KEHADIRAN KARYAWAN', 148.5, 11, { align: 'center' });
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        const tgl = new Date().toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'});
-        doc.text('Dicetak: ' + tgl + '  |  Periode: ' + filterPeriod + '  |  Lokasi: ' + (filterLoc || 'Semua'), 148.5, 19, { align: 'center' });
-
-        // Reset warna teks
-        doc.setTextColor(0, 0, 0);
-
-        // Buat data tabel
-        const rows = filtered.map(function(r, i) {
-          return [
-            String(i + 1),
-            new Date(r.time).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}),
-            new Date(r.time).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB',
-            r.name,
-            r.employeeId,
-            r.location,
-            r.type === 'Check In' ? 'MASUK' : 'PULANG'
-          ];
-        });
-
-        // Cek apakah autoTable tersedia
-        if (typeof doc.autoTable !== 'function') {
-          throw new Error('Plugin autoTable tidak tersedia');
-        }
+        doc.setFillColor(79,70,229);
+        doc.rect(0,0,297,24,'F');
+        doc.setTextColor(255,255,255);
+        doc.setFontSize(14); doc.setFont('helvetica','bold');
+        doc.text('LAPORAN KEHADIRAN KARYAWAN',148.5,11,{align:'center'});
+        doc.setFontSize(8); doc.setFont('helvetica','normal');
+        doc.text('Dicetak: '+new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})+
+          '  |  Periode: '+filterPeriod+'  |  Lokasi: '+(filterLoc||'Semua'),148.5,18,{align:'center'});
+        doc.setTextColor(0,0,0);
 
         doc.autoTable({
-          startY: 30,
-          head: [['No', 'Tanggal', 'Waktu', 'Nama Karyawan', 'ID Karyawan', 'Lokasi', 'Status']],
-          body: rows,
-          theme: 'striped',
-          headStyles: {
-            fillColor: [79, 70, 229],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 9,
-            halign: 'center'
-          },
-          bodyStyles: { fontSize: 8 },
-          columnStyles: {
-            0: { halign: 'center', cellWidth: 10 },
-            1: { cellWidth: 32 },
-            2: { halign: 'center', cellWidth: 25 },
-            4: { halign: 'center', cellWidth: 22 },
-            6: { halign: 'center', fontStyle: 'bold', cellWidth: 20 }
-          },
-          margin: { top: 30, left: 8, right: 8 },
-          didDrawCell: function(data) {
-            if (data.section === 'body' && data.column.index === 6) {
-              const val = data.cell.raw;
-              if (val === 'MASUK') {
-                doc.setTextColor(5, 150, 105);
-              } else {
-                doc.setTextColor(217, 119, 6);
-              }
-            }
-          },
-          didDrawPage: function(data) {
-            // Footer tiap halaman
-            const pageSize = doc.internal.pageSize;
-            const pageH = pageSize.height || pageSize.getHeight();
-            doc.setFontSize(7);
-            doc.setTextColor(150);
-            doc.text('Portal Kehadiran — Enterprise HR System', 8, pageH - 5);
-            doc.text('Hal. ' + doc.internal.getCurrentPageInfo().pageNumber, 289, pageH - 5, { align: 'right' });
-          }
+          startY:28,
+          head:[['No','Tanggal','Waktu','Nama','ID','Lokasi','Status','GPS']],
+          body:filtered.map((r,i)=>[
+            i+1,
+            new Date(r.time).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}),
+            new Date(r.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+' WIB',
+            r.name, r.employeeId, r.location,
+            r.type==='Check In'?'MASUK':'PULANG',
+            r.latitude?`${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`:'-'
+          ]),
+          headStyles:{fillColor:[79,70,229],textColor:255,fontStyle:'bold',fontSize:8,halign:'center'},
+          bodyStyles:{fontSize:7},
+          columnStyles:{0:{halign:'center',cellWidth:8},2:{halign:'center'},4:{halign:'center'},6:{halign:'center',fontStyle:'bold'}},
+          alternateRowStyles:{fillColor:[248,250,252]},
+          margin:{left:5,right:5},
         });
 
-        const fileName = 'Laporan-Kehadiran-' + new Date().toISOString().slice(0, 10) + '.pdf';
-        // Coba buka di tab baru (lebih kompatibel HP Android)
-        try {
-          const pdfBlob = doc.output('blob');
-          const blobUrl = URL.createObjectURL(pdfBlob);
-          window.open(blobUrl, '_blank');
-          // Fallback: langsung download juga
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = fileName;
-          a.click();
-        } catch(e2) {
-          // Fallback terakhir: datauri
-          doc.save(fileName);
-        }
-        alert('✅ PDF siap! Jika tidak terbuka otomatis, cek folder Downloads.');
+        // Download via base64 - kompatibel Android
+        const b64 = doc.output('datauristring');
+        const a = document.createElement('a');
+        a.href = b64;
+        a.download = 'Laporan-'+new Date().toISOString().slice(0,10)+'.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        alert('✅ PDF berhasil diunduh! Cek folder Downloads.');
       } catch(err) {
-        console.error('PDF Error:', err);
-        alert('Gagal buat PDF: ' + err.message + '\n\nCoba refresh halaman lalu coba lagi.');
+        alert('Gagal buat PDF: '+err.message);
       }
-      setExporting(false);
-    }, 100);
+      setExp(false);
+    },200);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-2xl font-bold text-slate-800">Laporan Kehadiran</h1><p className="text-slate-500 text-sm mt-1">Real-time attendance report</p></div>
-        <button onClick={exportPDF} disabled={exporting||filtered.length===0}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm transition-all">
-          <PrinterIcon size={16}/> {exporting?'Membuat PDF...':'Ekspor PDF'}
-        </button>
+    <div className="space-y-5">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div><h1 className="text-2xl font-bold text-slate-800">Laporan Kehadiran</h1><p className="text-slate-500 text-sm mt-1">{filtered.length} data ditemukan</p></div>
+        <div className="flex gap-2">
+          {filtered.length>0 && (
+            <button onClick={deleteAll} disabled={deleting}
+              className="bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm">
+              <IcTrash size={15}/> {deleting?'Menghapus...':'Hapus Data'}
+            </button>
+          )}
+          <button onClick={exportPDF} disabled={exporting||filtered.length===0}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 text-sm">
+            <IcPrint size={15}/> {exporting?'Membuat...':'Ekspor PDF'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-          <SearchIcon size={16} className="text-slate-400"/><span className="font-semibold text-slate-700">Filter Data</span>
-        </div>
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100"><IcSearch size={15} cls="text-slate-400"/><span className="font-semibold text-slate-700 text-sm">Filter</span></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Periode</label>
-            <select value={filterPeriod} onChange={e=>setFilterPeriod(e.target.value)} className="w-full border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm outline-none">
+          <div><label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Periode</label>
+            <select value={filterPeriod} onChange={e=>setPeriod(e.target.value)} className="w-full border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm outline-none">
               <option>Semua Waktu</option><option>Hari Ini</option><option>Minggu Ini</option><option>Bulan Ini</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Wilayah</label>
-            <input value={filterLoc} onChange={e=>setFilterLoc(e.target.value)} placeholder="Cari lokasi..." className="w-full border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm outline-none"/>
-          </div>
+            </select></div>
+          <div><label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1.5">Wilayah</label>
+            <input value={filterLoc} onChange={e=>setLoc(e.target.value)} placeholder="Cari lokasi..." className="w-full border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm outline-none"/></div>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-600">{filtered.length} data ditemukan</span>
-        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="p-4 font-semibold text-slate-600 text-sm">Tanggal & Waktu</th>
@@ -501,11 +432,11 @@ function AdminLaporan({ records }) {
                 <th className="p-4 font-semibold text-slate-600 text-sm">Lokasi</th>
                 <th className="p-4 font-semibold text-slate-600 text-sm">Status</th>
                 <th className="p-4 font-semibold text-slate-600 text-sm text-center">Foto</th>
-                <th className="p-4 font-semibold text-slate-600 text-sm text-center">Lokasi GPS</th>
+                <th className="p-4 font-semibold text-slate-600 text-sm text-center">Maps</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.length > 0 ? filtered.map(r=>(
+              {filtered.length>0 ? filtered.map(r=>(
                 <tr key={r.id} className="hover:bg-slate-50">
                   <td className="p-4">
                     <div className="text-sm text-slate-700">{new Date(r.time).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -517,28 +448,28 @@ function AdminLaporan({ records }) {
                   </td>
                   <td className="p-4 text-slate-600 text-sm">{r.location}</td>
                   <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${r.type==='Check In'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${r.type==='Check In'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}`}>
                       {r.type==='Check In'?'✅ Masuk':'🔶 Pulang'}
                     </span>
                   </td>
                   <td className="p-4 text-center">
-                    <img src={r.photo} alt="foto" className="w-10 h-10 rounded-lg object-cover mx-auto border border-slate-200"/>
+                    {r.photo ? <img src={r.photo} alt="foto" className="w-10 h-10 rounded-lg object-cover mx-auto border border-slate-200"/> : <span className="text-xs text-slate-300">—</span>}
                   </td>
                   <td className="p-4 text-center">
                     {r.maps_url ? (
                       <a href={r.maps_url} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 border border-blue-200">
-                        <MapPinIcon size={12}/> Lihat
+                        <IcPin size={12}/> Maps
                       </a>
-                    ) : (
+                    ):(
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
                 </tr>
-              )) : (
-                <tr><td colSpan="5" className="p-10 text-center text-slate-400">
-                  <FileTextIcon size={36} className="mx-auto mb-2 opacity-20"/>
-                  <p>Tidak ada data ditemukan</p>
+              )):(
+                <tr><td colSpan="6" className="p-10 text-center text-slate-400">
+                  <IcFile size={36} cls="mx-auto mb-2 opacity-20"/>
+                  <p>Tidak ada data</p>
                 </td></tr>
               )}
             </tbody>
@@ -549,99 +480,120 @@ function AdminLaporan({ records }) {
   );
 }
 
-// ===================== EMPLOYEE DASHBOARD =====================
-function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
-  const [time, setTime]           = useState(new Date());
-  const [absenType, setAbsenType] = useState(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [photoData, setPhotoData] = useState(null);
-  const [stream, setStream]       = useState(null);
+// ============ EMPLOYEE DASHBOARD ============
+function EmpDash({user,onLogout,records,setRec}) {
+  const [time,setTime]             = useState(new Date());
+  const [absenType,setType]        = useState(null);
+  const [cameraActive,setCamActive]= useState(false);
+  const [photoData,setPhoto]       = useState(null);
+  const [stream,setStream]         = useState(null);
+  const [camError,setCamError]     = useState('');
+  const [submitting,setSubmitting] = useState(false);
   const videoRef  = useRef(null);
   const canvasRef = useRef(null);
 
-  useEffect(()=>{ const t=setInterval(()=>setTime(new Date()),1000); return()=>clearInterval(t); },[]);
-  useEffect(()=>{ if(cameraActive&&videoRef.current&&stream) videoRef.current.srcObject=stream; },[cameraActive,stream]);
+  useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t);},[]);
 
-  const myRecords = records.filter(r=>r.employeeId===currentUser.id).sort((a,b)=>new Date(b.time)-new Date(a.time));
-
-  const startCamera = async () => {
-    setPhotoData(null);
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
-      setStream(s); setCameraActive(true);
-    } catch { alert('Izin kamera diperlukan.'); cancelFlow(); }
-  };
-  const stopCamera  = () => { stream?.getTracks().forEach(t=>t.stop()); setStream(null); setCameraActive(false); };
-  const cancelFlow  = () => { stopCamera(); setAbsenType(null); setPhotoData(null); };
-  const takePhoto   = () => {
-    if(!videoRef.current||!canvasRef.current) return;
-    const ctx=canvasRef.current.getContext('2d');
-    canvasRef.current.width=videoRef.current.videoWidth;
-    canvasRef.current.height=videoRef.current.videoHeight;
-    ctx.drawImage(videoRef.current,0,0);
-    setPhotoData(canvasRef.current.toDataURL('image/jpeg',0.8));
-    stopCamera();
-  };
-  const confirmSubmit = async () => {
-    if(!photoData||!absenType) return;
-    
-    // Ambil GPS koordinat
-    let latitude = null, longitude = null, maps_url = null;
-    try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true, timeout: 8000
-        });
-      });
-      latitude = pos.coords.latitude;
-      longitude = pos.coords.longitude;
-      maps_url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-    } catch(gpsErr) {
-      console.warn('GPS tidak tersedia:', gpsErr.message);
+  // Attach stream ke video
+  useEffect(()=>{
+    if(cameraActive && stream && videoRef.current){
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(()=>{});
     }
+  },[cameraActive,stream]);
 
-    const newRec = {
-      id: Date.now(),
-      employeeId: currentUser.id,
-      name: currentUser.name,
-      location: currentUser.location,
-      type: absenType,
-      time: new Date().toISOString(),
-      photo: photoData,
-      latitude, longitude, maps_url
+  const myRecs = records.filter(r=>r.employeeId===user.id).sort((a,b)=>new Date(b.time)-new Date(a.time));
+
+  const startCam = async () => {
+    setPhoto(null); setCamError('');
+    // Coba berbagai constraint untuk kompatibilitas Android APK
+    const constraints = [
+      {video:{facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480}}},
+      {video:{facingMode:'user'}},
+      {video:true}
+    ];
+    let ok = false;
+    for(const c of constraints){
+      try {
+        const s = await navigator.mediaDevices.getUserMedia(c);
+        setStream(s); setCamActive(true); ok=true; break;
+      } catch(err){ console.warn('Cam try failed:',err.message); }
+    }
+    if(!ok){
+      setCamError('Kamera tidak bisa dibuka. Pastikan izin kamera sudah diberikan di pengaturan browser/app.');
+    }
+  };
+
+  const stopCam = () => {
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    setStream(null); setCamActive(false);
+  };
+
+  const cancelFlow = () => { stopCam(); setType(null); setPhoto(null); setCamError(''); };
+
+  const takePhoto = () => {
+    if(!videoRef.current||!canvasRef.current) return;
+    const v=videoRef.current, cv=canvasRef.current;
+    cv.width=v.videoWidth||640; cv.height=v.videoHeight||480;
+    cv.getContext('2d').drawImage(v,0,0);
+    setPhoto(cv.toDataURL('image/jpeg',0.75));
+    stopCam();
+  };
+
+  const confirmSubmit = async () => {
+    if(!photoData||!absenType||submitting) return;
+    setSubmitting(true);
+
+    // Ambil GPS
+    let lat=null, lng=null, mapsUrl=null;
+    try {
+      const pos = await new Promise((res,rej)=>
+        navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:6000})
+      );
+      lat=pos.coords.latitude; lng=pos.coords.longitude;
+      mapsUrl=`https://www.google.com/maps?q=${lat},${lng}`;
+    } catch(e){ console.warn('GPS skip:',e.message); }
+
+    const rec = {
+      id:Date.now(), employeeId:user.id, name:user.name,
+      location:user.location, type:absenType,
+      time:new Date().toISOString(), photo:photoData,
+      latitude:lat, longitude:lng, maps_url:mapsUrl
     };
 
-    const { error } = await supabase.from('records').insert([{
-      id: newRec.id,
-      employee_id: newRec.employeeId,
-      name: newRec.name,
-      location: newRec.location,
-      type: newRec.type,
-      time: newRec.time,
-      photo: newRec.photo,
-      latitude: newRec.latitude,
-      longitude: newRec.longitude,
-      maps_url: newRec.maps_url
+    const {error} = await sb.from('records').insert([{
+      id:rec.id, employee_id:rec.employeeId, name:rec.name,
+      location:rec.location, type:rec.type, time:rec.time,
+      photo:rec.photo, latitude:lat, longitude:lng, maps_url:mapsUrl
     }]);
-    if (error) { alert('Gagal simpan absen: ' + error.message); return; }
-    setRecords(prev => [newRec, ...prev]);
-    const gpsInfo = maps_url ? `\n📍 Lokasi GPS berhasil direkam` : `\n⚠️ GPS tidak aktif`;
-    alert(`✅ Berhasil!\nAbsen ${absenType==='Check In'?'Masuk':'Pulang'} pukul ${new Date().toLocaleTimeString('id-ID')}${gpsInfo}`);
+
+    if(error){ alert('Gagal simpan: '+error.message); setSubmitting(false); return; }
+
+    setRec(prev=>[rec,...prev]);
+    const gpsMsg = mapsUrl?'\n📍 Lokasi GPS direkam':'\n⚠️ GPS tidak aktif';
+    alert('✅ Berhasil!\nAbsen '+(absenType==='Check In'?'Masuk':'Pulang')+' pukul '+new Date().toLocaleTimeString('id-ID')+gpsMsg);
     cancelFlow();
+    setSubmitting(false);
+  };
+
+  const deleteMyRecord = async (id) => {
+    if(!window.confirm('Hapus data absensi ini?')) return;
+    await sb.from('records').delete().eq('id',id);
+    setRec(prev=>prev.filter(r=>r.id!==id));
   };
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       <header className="bg-white px-5 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">{currentUser.name.charAt(0)}</div>
-          <div><p className="font-bold text-slate-800">{currentUser.name}</p><p className="text-xs text-slate-500">{currentUser.position} · {currentUser.id}</p></div>
+          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">{user.name.charAt(0)}</div>
+          <div><p className="font-bold text-slate-800 leading-tight">{user.name}</p><p className="text-xs text-slate-500">{user.position} · {user.id}</p></div>
         </div>
-        <button onClick={onLogout} className="text-slate-400 hover:text-red-500 p-2.5 rounded-full hover:bg-red-50"><LogOutIcon size={20}/></button>
+        <button onClick={onLogout} className="text-slate-400 hover:text-red-500 p-2.5 rounded-full hover:bg-red-50"><IcLogout size={20}/></button>
       </header>
 
-      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-5 pb-10">
-        {/* Clock */}
+      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-5 pb-12">
+        {/* Jam */}
         <div className="relative overflow-hidden bg-slate-900 rounded-3xl p-7 text-center shadow-xl">
           <div style={{position:'absolute',top:0,right:0,width:'7rem',height:'7rem',background:'#6366f1',borderRadius:'50%',filter:'blur(40px)',opacity:.5,transform:'translate(50%,-50%)'}}/>
           <div style={{position:'absolute',bottom:0,left:0,width:'7rem',height:'7rem',background:'#3b82f6',borderRadius:'50%',filter:'blur(40px)',opacity:.5,transform:'translate(-50%,50%)'}}/>
@@ -649,48 +601,63 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
             <p className="text-indigo-200 text-xs font-medium uppercase tracking-wide mb-2">{time.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
             <h2 className="text-5xl font-mono font-bold text-white mb-3 tabular-nums">{time.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</h2>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
-              <MapPinIcon size={12}/> {currentUser.location}
+              <IcPin size={12}/> {user.location}
             </div>
           </div>
         </div>
 
-        {/* Absen */}
+        {/* Absen Card */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
           {!absenType ? (
             <>
-              <div className="text-center mb-4"><h3 className="font-bold text-slate-800">Pilih Jenis Absen</h3><p className="text-sm text-slate-500">Klik untuk membuka kamera selfie</p></div>
+              <div className="text-center mb-4"><h3 className="font-bold text-slate-800">Pilih Jenis Absen</h3><p className="text-sm text-slate-500">Klik untuk absen dengan selfie + GPS</p></div>
               <div className="grid grid-cols-2 gap-4">
-                <button onClick={()=>{setAbsenType('Check In');startCamera();}} className="flex flex-col items-center gap-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-500 text-emerald-700 py-6 rounded-2xl font-bold active:scale-95 transition-transform">
-                  <CheckIcon size={32}/><span className="text-lg">MASUK</span>
+                <button onClick={()=>{setType('Check In');startCam();}} className="flex flex-col items-center gap-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-500 text-emerald-700 py-6 rounded-2xl font-bold active:scale-95 transition-transform">
+                  <IcCheck size={32}/><span className="text-lg">MASUK</span>
                 </button>
-                <button onClick={()=>{setAbsenType('Check Out');startCamera();}} className="flex flex-col items-center gap-3 bg-amber-50 hover:bg-amber-100 border-2 border-amber-500 text-amber-700 py-6 rounded-2xl font-bold active:scale-95 transition-transform">
-                  <XIcon size={32}/><span className="text-lg">PULANG</span>
+                <button onClick={()=>{setType('Check Out');startCam();}} className="flex flex-col items-center gap-3 bg-amber-50 hover:bg-amber-100 border-2 border-amber-500 text-amber-700 py-6 rounded-2xl font-bold active:scale-95 transition-transform">
+                  <IcX size={32}/><span className="text-lg">PULANG</span>
                 </button>
               </div>
             </>
-          ) : (
+          ):(
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <button onClick={cancelFlow} className="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-sm"><ArrowLeft size={16}/> Batal</button>
+                <button onClick={cancelFlow} className="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-sm"><IcBack size={16}/> Batal</button>
                 <h3 className="font-bold text-slate-800">Absen {absenType==='Check In'?'Masuk':'Pulang'}</h3>
               </div>
-              <div className="bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 flex items-center justify-center" style={{aspectRatio:'4/3'}}>
-                {photoData ? <img src={photoData} alt="selfie" className="w-full h-full object-cover"/>
-                  : cameraActive ? <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"/>
-                  : <p className="text-slate-400 text-sm">Memuat kamera...</p>}
+
+              {camError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+                  <p className="font-bold mb-1">⚠️ Kamera tidak dapat dibuka</p>
+                  <p>{camError}</p>
+                  <button onClick={startCam} className="mt-2 text-red-600 underline text-xs">Coba lagi</button>
+                </div>
+              )}
+
+              <div className="bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 flex items-center justify-center" style={{aspectRatio:'4/3',minHeight:'200px'}}>
+                {photoData
+                  ? <img src={photoData} alt="selfie" className="w-full h-full object-cover"/>
+                  : cameraActive
+                  ? <video ref={videoRef} autoPlay playsInline muted webkit-playsinline="true" className="w-full h-full object-cover"/>
+                  : !camError && <div className="flex flex-col items-center gap-2 text-slate-400"><div className="w-8 h-8 border-3 border-slate-300 border-t-indigo-500 rounded-full spin"/><p className="text-sm">Memuat kamera...</p></div>
+                }
                 <canvas ref={canvasRef} className="hidden"/>
               </div>
-              {!photoData&&cameraActive&&(
+
+              {!photoData && cameraActive && (
                 <button onClick={takePhoto} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2">
-                  <CameraIcon size={20}/> Jepret Foto
+                  <IcCamera size={20}/> Jepret Foto
                 </button>
               )}
-              {photoData&&(
+
+              {photoData && (
                 <div className="space-y-3">
-                  <button onClick={confirmSubmit} className={`w-full text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 ${absenType==='Check In'?'bg-emerald-500 hover:bg-emerald-600':'bg-amber-500 hover:bg-amber-600'}`}>
-                    Kirim Absen {absenType==='Check In'?'Masuk':'Pulang'}
+                  <button onClick={confirmSubmit} disabled={submitting}
+                    className={`w-full text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-60 ${absenType==='Check In'?'bg-emerald-500 hover:bg-emerald-600':'bg-amber-500 hover:bg-amber-600'}`}>
+                    {submitting?'Menyimpan...':'Kirim Absen '+(absenType==='Check In'?'Masuk':'Pulang')}
                   </button>
-                  <button onClick={startCamera} className="w-full text-sm font-medium text-slate-500 py-3 bg-slate-100 rounded-xl hover:bg-slate-200">Ulangi Foto</button>
+                  <button onClick={startCam} className="w-full text-sm font-medium text-slate-500 py-3 bg-slate-100 rounded-xl hover:bg-slate-200">Ulangi Foto</button>
                 </div>
               )}
             </div>
@@ -701,30 +668,37 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-800">Riwayat Absensi</h3>
-            <span className="text-xs text-indigo-600 font-medium">{myRecords.length} data</span>
+            <span className="text-xs text-indigo-600 font-medium">{myRecs.length} data</span>
           </div>
-          <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
-            {myRecords.length > 0 ? myRecords.map(r=>(
-              <div key={r.id} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white ${r.type==='Check In'?'bg-emerald-500':'bg-amber-500'}`}>
-                    {r.type==='Check In'?<CheckIcon size={22}/>:<XIcon size={22}/>}
+          <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+            {myRecs.length>0 ? myRecs.map(r=>(
+              <div key={r.id} className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white flex-shrink-0 ${r.type==='Check In'?'bg-emerald-500':'bg-amber-500'}`}>
+                      {r.type==='Check In'?<IcCheck size={22}/>:<IcX size={22}/>}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{r.type==='Check In'?'Absen Masuk':'Absen Pulang'}</p>
+                      <p className="text-xs text-slate-500">{new Date(r.time).toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'})}</p>
+                      {/* MAPS LINK */}
+                      {r.maps_url && (
+                        <a href={r.maps_url} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-xs text-blue-500 hover:text-blue-700 mt-0.5">
+                          <IcPin size={10}/> Lihat lokasi di Maps
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">{r.type==='Check In'?'Absen Masuk':'Absen Pulang'}</p>
-                    <p className="text-xs text-slate-500">{new Date(r.time).toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'})}</p>
-                    {r.maps_url && (
-                      <a href={r.maps_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 mt-0.5">
-                        <MapPinIcon size={10}/> Lihat lokasi
-                      </a>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold font-mono text-slate-700">{new Date(r.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</p>
+                    <button onClick={()=>deleteMyRecord(r.id)} className="text-slate-300 hover:text-red-400 p-1"><IcTrash size={14}/></button>
                   </div>
                 </div>
-                <p className="text-lg font-bold font-mono text-slate-700">{new Date(r.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</p>
               </div>
-            )) : (
+            )):(
               <div className="text-center py-8 text-slate-400">
-                <FileTextIcon size={32} className="mx-auto mb-2 opacity-20"/>
+                <IcFile size={32} cls="mx-auto mb-2 opacity-20"/>
                 <p className="text-sm">Belum ada aktivitas</p>
               </div>
             )}
