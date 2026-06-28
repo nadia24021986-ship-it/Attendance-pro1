@@ -8,8 +8,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
   <style>
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -314,67 +314,104 @@ function AdminLaporan({ records }) {
 
   const exportPDF = () => {
     setExporting(true);
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+    setTimeout(() => {
+      try {
+        // Coba ambil jsPDF dari berbagai kemungkinan lokasi
+        let JsPDF = null;
+        if (window.jspdf && window.jspdf.jsPDF) {
+          JsPDF = window.jspdf.jsPDF;
+        } else if (window.jsPDF) {
+          JsPDF = window.jsPDF;
+        } else {
+          throw new Error('Library jsPDF tidak ditemukan');
+        }
 
-      // Header
-      doc.setFillColor(79, 70, 229);
-      doc.rect(0, 0, 297, 22, 'F');
-      doc.setTextColor(255,255,255);
-      doc.setFontSize(16);
-      doc.setFont('helvetica','bold');
-      doc.text('LAPORAN KEHADIRAN KARYAWAN', 148.5, 10, {align:'center'});
-      doc.setFontSize(9);
-      doc.setFont('helvetica','normal');
-      doc.text(`Periode: ${filterPeriod}  |  Lokasi: ${filterLoc||'Semua'}  |  Dicetak: ${new Date().toLocaleString('id-ID')}`, 148.5, 17, {align:'center'});
+        const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      // Table
-      doc.autoTable({
-        startY: 28,
-        head: [['No','Tanggal','Waktu','Nama Karyawan','ID','Lokasi','Status']],
-        body: filtered.map((r,i) => [
-          i+1,
-          new Date(r.time).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}),
-          new Date(r.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+' WIB',
-          r.name,
-          r.employeeId,
-          r.location,
-          r.type==='Check In' ? 'MASUK' : 'PULANG'
-        ]),
-        headStyles: { fillColor:[79,70,229], textColor:255, fontStyle:'bold', halign:'center' },
-        bodyStyles: { fontSize:9 },
-        columnStyles: {
-          0: {halign:'center', cellWidth:10},
-          2: {halign:'center'},
-          4: {halign:'center', font:'courier'},
-          6: {halign:'center', fontStyle:'bold'}
-        },
-        alternateRowStyles: { fillColor:[248,250,252] },
-        didParseCell: (data) => {
-          if (data.column.index===6 && data.section==='body') {
-            data.cell.styles.textColor = data.cell.raw==='MASUK' ? [5,150,105] : [217,119,6];
-          }
-        },
-        margin: { left:10, right:10 },
-      });
-
-      // Footer
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i=1; i<=pageCount; i++) {
-        doc.setPage(i);
+        // Header biru
+        doc.setFillColor(79, 70, 229);
+        doc.rect(0, 0, 297, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LAPORAN KEHADIRAN KARYAWAN', 148.5, 11, { align: 'center' });
         doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Halaman ${i} dari ${pageCount}`, 148.5, 205, {align:'center'});
-        doc.text('Enterprise HR System — Portal Kehadiran', 10, 205);
-      }
+        doc.setFont('helvetica', 'normal');
+        const tgl = new Date().toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'});
+        doc.text('Dicetak: ' + tgl + '  |  Periode: ' + filterPeriod + '  |  Lokasi: ' + (filterLoc || 'Semua'), 148.5, 19, { align: 'center' });
 
-      doc.save(`Laporan-Kehadiran-${new Date().toISOString().slice(0,10)}.pdf`);
-    } catch(err) {
-      alert('Gagal membuat PDF. Coba lagi.');
-      console.error(err);
-    }
-    setExporting(false);
+        // Reset warna teks
+        doc.setTextColor(0, 0, 0);
+
+        // Buat data tabel
+        const rows = filtered.map(function(r, i) {
+          return [
+            String(i + 1),
+            new Date(r.time).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}),
+            new Date(r.time).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) + ' WIB',
+            r.name,
+            r.employeeId,
+            r.location,
+            r.type === 'Check In' ? 'MASUK' : 'PULANG'
+          ];
+        });
+
+        // Cek apakah autoTable tersedia
+        if (typeof doc.autoTable !== 'function') {
+          throw new Error('Plugin autoTable tidak tersedia');
+        }
+
+        doc.autoTable({
+          startY: 30,
+          head: [['No', 'Tanggal', 'Waktu', 'Nama Karyawan', 'ID Karyawan', 'Lokasi', 'Status']],
+          body: rows,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [79, 70, 229],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 9,
+            halign: 'center'
+          },
+          bodyStyles: { fontSize: 8 },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { cellWidth: 32 },
+            2: { halign: 'center', cellWidth: 25 },
+            4: { halign: 'center', cellWidth: 22 },
+            6: { halign: 'center', fontStyle: 'bold', cellWidth: 20 }
+          },
+          margin: { top: 30, left: 8, right: 8 },
+          didDrawCell: function(data) {
+            if (data.section === 'body' && data.column.index === 6) {
+              const val = data.cell.raw;
+              if (val === 'MASUK') {
+                doc.setTextColor(5, 150, 105);
+              } else {
+                doc.setTextColor(217, 119, 6);
+              }
+            }
+          },
+          didDrawPage: function(data) {
+            // Footer tiap halaman
+            const pageSize = doc.internal.pageSize;
+            const pageH = pageSize.height || pageSize.getHeight();
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text('Portal Kehadiran — Enterprise HR System', 8, pageH - 5);
+            doc.text('Hal. ' + doc.internal.getCurrentPageInfo().pageNumber, 289, pageH - 5, { align: 'right' });
+          }
+        });
+
+        const fileName = 'Laporan-Kehadiran-' + new Date().toISOString().slice(0, 10) + '.pdf';
+        doc.save(fileName);
+        alert('PDF berhasil diunduh: ' + fileName);
+      } catch(err) {
+        console.error('PDF Error:', err);
+        alert('Gagal buat PDF: ' + err.message + '\n\nCoba refresh halaman lalu coba lagi.');
+      }
+      setExporting(false);
+    }, 100);
   };
 
   return (
