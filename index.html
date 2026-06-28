@@ -436,8 +436,21 @@ function AdminLaporan({ records }) {
         });
 
         const fileName = 'Laporan-Kehadiran-' + new Date().toISOString().slice(0, 10) + '.pdf';
-        doc.save(fileName);
-        alert('PDF berhasil diunduh: ' + fileName);
+        // Coba buka di tab baru (lebih kompatibel HP Android)
+        try {
+          const pdfBlob = doc.output('blob');
+          const blobUrl = URL.createObjectURL(pdfBlob);
+          window.open(blobUrl, '_blank');
+          // Fallback: langsung download juga
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = fileName;
+          a.click();
+        } catch(e2) {
+          // Fallback terakhir: datauri
+          doc.save(fileName);
+        }
+        alert('✅ PDF siap! Jika tidak terbuka otomatis, cek folder Downloads.');
       } catch(err) {
         console.error('PDF Error:', err);
         alert('Gagal buat PDF: ' + err.message + '\n\nCoba refresh halaman lalu coba lagi.');
