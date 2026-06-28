@@ -376,15 +376,11 @@ function AdminLaporan({records,setRec}) {
           margin:{left:5,right:5},
         });
 
-        // Download via base64 - kompatibel Android
-        const b64 = doc.output('datauristring');
-        const a = document.createElement('a');
-        a.href = b64;
-        a.download = 'Laporan-'+new Date().toISOString().slice(0,10)+'.pdf';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        alert('✅ PDF berhasil diunduh! Cek folder Downloads.');
+        // Buka PDF di tab baru - paling kompatibel di Android
+        const pdfOutput = doc.output('blob');
+        const blobUrl = URL.createObjectURL(pdfOutput);
+        window.open(blobUrl, '_blank');
+        alert('✅ PDF terbuka di tab baru!\nTap ikon Download (⬇) di browser untuk simpan.');
       } catch(err) {
         alert('Gagal buat PDF: '+err.message);
       }
@@ -506,21 +502,34 @@ function EmpDash({user,onLogout,records,setRec}) {
 
   const startCam = async () => {
     setPhoto(null); setCamError('');
-    // Coba berbagai constraint untuk kompatibilitas Android APK
-    const constraints = [
+
+    // Polyfill getUserMedia untuk browser lama/APK Android
+    const getUserMedia = (
+      navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices) ||
+      (c => new Promise((res,rej) => {
+        const gum = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+                    navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        if(!gum) return rej(new Error('getUserMedia tidak didukung'));
+        gum.call(navigator, c, res, rej);
+      }))
+    );
+
+    const tries = [
       {video:{facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480}}},
       {video:{facingMode:'user'}},
+      {video:{width:640,height:480}},
       {video:true}
     ];
+
     let ok = false;
-    for(const c of constraints){
+    for(const c of tries){
       try {
-        const s = await navigator.mediaDevices.getUserMedia(c);
+        const s = await getUserMedia(c);
         setStream(s); setCamActive(true); ok=true; break;
-      } catch(err){ console.warn('Cam try failed:',err.message); }
+      } catch(e){ console.warn('Cam try:',e.message); }
     }
     if(!ok){
-      setCamError('Kamera tidak bisa dibuka. Pastikan izin kamera sudah diberikan di pengaturan browser/app.');
+      setCamError('Kamera tidak dapat dibuka.\n\nSolusi:\n1. Buka di browser Chrome/Firefox (bukan APK langsung)\n2. Pastikan izin kamera diizinkan\n3. Coba refresh halaman');
     }
   };
 
