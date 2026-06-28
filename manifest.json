@@ -1,0 +1,14 @@
+{
+  "background_color": "#f5f5f5",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "attendance-pro1",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "attendance",
+  "start_url": "/https://attendance-pro1-xkyo.vercel.app/",
+  "theme_color": "#162bc7",
+  "id": "admin456231",
+  "description": "https://attendance-pro1-xkyo.vercel.app/",
+  "lang": "id"
+}
