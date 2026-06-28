@@ -73,9 +73,31 @@ const initialRecords = [
 
 // ===================== APP =====================
 function App() {
-  const [currentUser, setCurrentUser]  = useState(null);
-  const [employees,   setEmployees]    = useState(initialEmployees);
-  const [records,     setRecords]      = useState(initialRecords);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Load dari localStorage, fallback ke data awal
+  const [employees, setEmployees] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pk_employees');
+      return saved ? JSON.parse(saved) : initialEmployees;
+    } catch { return initialEmployees; }
+  });
+
+  const [records, setRecords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pk_records');
+      return saved ? JSON.parse(saved) : initialRecords;
+    } catch { return initialRecords; }
+  });
+
+  // Auto-save ke localStorage setiap ada perubahan
+  useEffect(() => {
+    localStorage.setItem('pk_employees', JSON.stringify(employees));
+  }, [employees]);
+
+  useEffect(() => {
+    localStorage.setItem('pk_records', JSON.stringify(records));
+  }, [records]);
 
   if (!currentUser)
     return <LoginScreen onLogin={setCurrentUser} employees={employees}/>;
