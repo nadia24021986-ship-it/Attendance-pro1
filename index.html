@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
   <style>
@@ -21,6 +22,11 @@
 
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
+
+// ===================== SUPABASE =====================
+const SUPABASE_URL = 'https://kxklbnwfnhvbxulsoolu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_DiK2kY485pL1iycM5LAfZQ_QCVwHSQt';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ===================== ICONS =====================
 const Icon = ({ d, size=20, className="" }) => (
@@ -74,35 +80,56 @@ const initialRecords = [
 // ===================== APP =====================
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [employees, setEmployees]     = useState([]);
+  const [records, setRecords]         = useState([]);
+  const [loading, setLoading]         = useState(true);
 
-  // Load dari localStorage, fallback ke data awal
-  const [employees, setEmployees] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pk_employees');
-      return saved ? JSON.parse(saved) : initialEmployees;
-    } catch { return initialEmployees; }
-  });
-
-  const [records, setRecords] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pk_records');
-      return saved ? JSON.parse(saved) : initialRecords;
-    } catch { return initialRecords; }
-  });
-
-  // Auto-save ke localStorage setiap ada perubahan
+  // Load data dari Supabase saat pertama kali
   useEffect(() => {
-    localStorage.setItem('pk_employees', JSON.stringify(employees));
-  }, [employees]);
+    loadData();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('pk_records', JSON.stringify(records));
-  }, [records]);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [empRes, recRes] = await Promise.all([
+        supabase.from('employees').select('*').order('id'),
+        supabase.from('records').select('*').order('time', { ascending: false })
+      ]);
+      if (empRes.data && empRes.data.length > 0) {
+        setEmployees(empRes.data.map(e => ({
+          id: e.id, name: e.name, position: e.position, location: e.location
+        })));
+      } else {
+        // Isi data awal ke Supabase kalau kosong
+        await supabase.from('employees').insert(initialEmployees);
+        setEmployees(initialEmployees);
+      }
+      if (recRes.data) {
+        setRecords(recRes.data.map(r => ({
+          id: r.id, employeeId: r.employee_id, name: r.name,
+          location: r.location, type: r.type, time: r.time, photo: r.photo
+        })));
+      }
+    } catch(err) {
+      console.error('Load error:', err);
+      setEmployees(initialEmployees);
+      setRecords(initialRecords);
+    }
+    setLoading(false);
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center gap-4">
+      <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"/>
+      <p className="text-white font-semibold text-lg">Memuat data...</p>
+    </div>
+  );
 
   if (!currentUser)
     return <LoginScreen onLogin={setCurrentUser} employees={employees}/>;
   if (currentUser === 'admin')
-    return <AdminDashboard onLogout={()=>setCurrentUser(null)} employees={employees} setEmployees={setEmployees} records={records}/>;
+    return <AdminDashboard onLogout={()=>setCurrentUser(null)} employees={employees} setEmployees={setEmployees} records={records} reloadData={loadData}/>;
   return <EmployeeDashboard currentUser={currentUser} onLogout={()=>setCurrentUser(null)} records={records} setRecords={setRecords}/>;
 }
 
@@ -199,12 +226,17 @@ function AdminKaryawan({ employees, setEmployees }) {
   const [showForm, setShowForm] = useState(false);
   const [lastAdded, setLastAdded] = useState(null); // simpan ID terakhir di state
 
-  const handleAdd = e => {
+  const handleAdd = async e => {
     e.preventDefault();
     const newId = generateId(employees);
     const newEmp = { id: newId, ...form };
+    // Simpan ke Supabase
+    const { error } = await supabase.from('employees').insert([{
+      id: newId, name: form.name, position: form.position, location: form.location
+    }]);
+    if (error) { alert('Gagal simpan: ' + error.message); return; }
     setEmployees(prev => [...prev, newEmp]);
-    setLastAdded(newEmp); // tampilkan di UI, bukan hanya alert
+    setLastAdded(newEmp);
     setForm({ name:'', position:'', location:'' });
     setShowForm(false);
   };
@@ -525,9 +557,32 @@ function EmployeeDashboard({ currentUser, onLogout, records, setRecords }) {
     setPhotoData(canvasRef.current.toDataURL('image/jpeg',0.8));
     stopCamera();
   };
-  const confirmSubmit = () => {
+  const confirmSubmit = async () => {
     if(!photoData||!absenType) return;
-    setRecords([{id:Date.now(),employeeId:currentUser.id,name:currentUser.name,location:currentUser.location,type:absenType,time:new Date().toISOString(),photo:photoData},...records]);
+    const newRec = {
+      id: Date.now(),
+      employeeId: currentUser.id,
+      name: currentUser.name,
+      location: currentUser.location,
+      type: absenType,
+      time: new Date().toISOString(),
+      photo: photoData
+    };
+    // Simpan ke Supabase
+    const { error } = await supabase.from('records').insert([{
+      id: newRec.id,
+      employee_id: newRec.employeeId,
+      name: newRec.name,
+      location: newRec.location,
+      type: newRec.type,
+      time: newRec.time,
+      photo: newRec.photo
+    }]);
+    if (error) {
+      alert('Gagal simpan absen: ' + error.message);
+      return;
+    }
+    setRecords(prev => [newRec, ...prev]);
     alert(`✅ Berhasil!\nAbsen ${absenType==='Check In'?'Masuk':'Pulang'} pukul ${new Date().toLocaleTimeString('id-ID')}`);
     cancelFlow();
   };
